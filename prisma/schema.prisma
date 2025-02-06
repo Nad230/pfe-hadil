@@ -1,0 +1,32 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  id_users     String    @unique @map("id_users") // Reference to Supabase auth table
+  phone        String?   @unique
+  role         String    @default("user")
+  fullname     String
+  created_at   DateTime  @default(now())
+  email        String    @unique
+  password     String
+  profile_photo String?
+  projects     Project[] @relation("UserProjects") // Define the relation name here
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  user        User     @relation("UserProjects", fields: [userId], references: [id]) // Specify the same relation name
+  @@map("projects")
+}
