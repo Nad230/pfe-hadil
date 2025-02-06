@@ -10,23 +10,40 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  id_users     String    @unique @map("id_users") // Reference to Supabase auth table
-  phone        String?   @unique
-  role         String    @default("user")
-  fullname     String
-  created_at   DateTime  @default(now())
-  email        String    @unique
-  password     String
+  id            String    @id @default(cuid())
+  id_users      String    @unique @map("id_users") // Reference to Supabase auth table
+  phone         String?   @unique
+  role          String    @default("user")
+  fullname      String
+  created_at    DateTime  @default(now())
+  email         String    @unique
+  password      String
   profile_photo String?
-  projects     Project[] @relation("UserProjects") // Define the relation name here
+  projects      Project[] @relation("UserProjects") // Define the relation name here
+  tasks         Task[]    @relation("UserTasks") // Add relation to Task model
 }
 
 model Project {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
   description String?
   userId      String
-  user        User     @relation("UserProjects", fields: [userId], references: [id]) // Specify the same relation name
+  user        User    @relation("UserProjects", fields: [userId], references: [id]) // Specify the same relation name
+  tasks       Task[]  @relation("ProjectTasks") // Add relation to Task model
+
   @@map("projects")
+}
+
+model Task {
+  id             String   @id @default(uuid())
+  title          String
+  description    String?
+  status         String   @default("pending") // Default status
+  userId         String
+  projectId      String
+  estimatedHours Float? // Optional field for estimated hours
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation("UserTasks", fields: [userId], references: [id]) // Specify the relation name
+  project        Project  @relation("ProjectTasks", fields: [projectId], references: [id]) // Specify the relation name
 }
