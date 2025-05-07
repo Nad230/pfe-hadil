@@ -4,11 +4,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import  ProjectForm  from "./project-form";
 import Cookies from "js-cookie";
-
+import { Achievement } from "@/components/ui/achievement"
+import { toast } from "sonner";
 interface AddProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  refreshProjects: () => void; // Fetch updated projects from the parent
+  refreshProjects: () => void; // Make sure this line exists
 }
 
 export function AddProjectDialog({ open, onOpenChange, refreshProjects }: AddProjectDialogProps) {
@@ -29,7 +30,7 @@ export function AddProjectDialog({ open, onOpenChange, refreshProjects }: AddPro
           description: data.description,
           type: data.type,
           visibility: data.visibility,
-          status: data.status,
+          status:'Pending',
           vision: data.vision,
           impact: data.impact,
           revenueModel: data.revenueModel,
@@ -39,13 +40,18 @@ export function AddProjectDialog({ open, onOpenChange, refreshProjects }: AddPro
           teamId: data.teamId,
           teamMembers: data.teamMembers,
           location: data.location,
-          media: data.media,
+          strategyModel:data.strategyModel,
+          mainGoal: data.mainGoal,
+          estimatedCompletionDate: data.estimatedCompletionDate ? 
+            new Date(data.estimatedCompletionDate).toISOString() : 
+            null,
+
           collaborations: data.collaborations,
           projectMilestones: data.projectMilestones,
+          teamType:data.teamType,
           aiInsights: data.aiInsights,
           planType: data.planType,
           tags:data.tags,
-          aiUnlocked: data.aiUnlocked,
         }),
       });
   
@@ -73,41 +79,19 @@ export function AddProjectDialog({ open, onOpenChange, refreshProjects }: AddPro
           }),
         });
       }
+      
   
       onOpenChange(false);
-      refreshProjects();
+      toast.success("Project created successfully!");
+    
+      // Refresh project list
+      await refreshProjects();
     } catch (error: any) {
       console.error("Error adding project:", error.message || "Something went wrong");
     }
   };
   
-  const fetchAiResponse = async (userInput: string) => {
-    try {
-      const token = Cookies.get("token");
-      if (!token) throw new Error("No authentication token found.");
   
-      const response = await fetch("http://localhost:3000/ai/assist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-        body: JSON.stringify({ prompt: userInput }), // Assuming your AI expects a "prompt"
-      });
-  
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`AI request failed: ${errorText}`);
-      }
-  
-      const data = await response.json();
-      return data; // AI response
-    } catch (error: any) {
-      console.error("Error fetching AI response:", error.message || "Something went wrong");
-      return null;
-    }
-  };
   
 
   return (

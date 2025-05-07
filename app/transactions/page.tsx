@@ -7,16 +7,14 @@ import { TransactionFilters } from "@/components/transactions/transaction-filter
 import { AddTransactionDialog } from "@/components/transactions/add-transaction-dialog"
 import { EditTransactionDialog } from "@/components/transactions/edit-transaction-dialog"
 import { DeleteTransactionDialog } from "@/components/transactions/delete-transaction-dialog"
-import { BulkActionsMenu } from "@/components/transactions/bulk-actions-menu"
-import { RecurringTransactions } from "@/components/transactions/recurring-transactions"
-import { ImportExportMenu } from "@/components/transactions/import-export-menu"
-import { InvoiceGenerator } from "@/components/transactions/invoice-generator"
 import { mockTransactions } from "@/lib/mock-data"
 import { Transaction, TransactionFilters as ITransactionFilters } from "@/lib/types"
 import { toast } from "sonner"
+import { motion } from "framer-motion"
+import { TrendingUp, TrendingDown, DollarSign, Clock } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 const initialFilters: ITransactionFilters = {
-  
   type: "all",
   category: "all",
   source: "all",
@@ -29,10 +27,8 @@ const initialFilters: ITransactionFilters = {
 }
 
 export default function TransactionsPage() {
- 
   const [filters, setFilters] = useState<ITransactionFilters>(initialFilters)
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions)
-  const [selectedTransactions, setSelectedTransactions] = useState<string[]>([])
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -52,6 +48,17 @@ export default function TransactionsPage() {
     
     return true
   })
+
+  const totalRevenue = transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const totalExpenses = transactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0)
+
+  const profit = totalRevenue - totalExpenses
+  const profitPercentage = ((profit / totalRevenue) * 100) || 0
 
   const handleAddTransaction = (transaction: Transaction) => {
     setTransactions((prev) => [transaction, ...prev])
@@ -81,65 +88,207 @@ export default function TransactionsPage() {
     toast.success("Transaction deleted successfully")
   }
 
-  const handleBulkAction = (action: string) => {
-    switch (action) {
-      case 'delete':
-        setTransactions(prev => prev.filter(t => !selectedTransactions.includes(t.id)))
-        setSelectedTransactions([])
-        toast.success("Selected transactions deleted")
-        break
-      case 'categorize':
-        // Implement bulk categorization
-        break
-      case 'export':
-        // Implement bulk export
-        break
-    }
-  }
-
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Transactions</h1>
-          <div className="flex items-center gap-4">
-            <ImportExportMenu />
-            <InvoiceGenerator />
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <motion.h1 
+          className="text-4xl font-bold"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          Your Business Journey
+        </motion.h1>
+        <motion.p 
+          className="text-muted-foreground"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          See your progress, celebrate your wins 🏆
+        </motion.p>
+      </div>
+
+      {/* Overview Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <motion.div 
+                className="text-2xl font-bold text-green-600"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                {formatCurrency(totalRevenue)}
+              </motion.div>
+              <p className="text-xs text-muted-foreground">This month</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+              <DollarSign className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <motion.div 
+                className="text-2xl font-bold text-red-600"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                {formatCurrency(totalExpenses)}
+              </motion.div>
+              <p className="text-xs text-muted-foreground">This month</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+              {profit >= 0 ? (
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              ) : (
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              )}
+            </CardHeader>
+            <CardContent>
+              <motion.div 
+                className={`text-2xl font-bold ${
+                  profit >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                {formatCurrency(profit)}
+              </motion.div>
+              <p className="text-xs text-muted-foreground">
+                {profit >= 0 ? "You're growing! 🚀" : "Room for improvement 💪"}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Hours Worked</CardTitle>
+              <Clock className="h-4 w-4 text-blue-500" />
+            </CardHeader>
+            <CardContent>
+              <motion.div 
+                className="text-2xl font-bold text-blue-600"
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                156h
+              </motion.div>
+              <p className="text-xs text-muted-foreground">This month</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Growth Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Growth Summary</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Weekly Growth</h3>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              <span className="text-green-600">+15% in sales compared to last week</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Keep up the momentum! Your strategies are working 🎯
+            </p>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Monthly Growth</h3>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              <span className="text-green-600">+23% in revenue this month</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You're on track for your best month yet! 🌟
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Insights */}
+      <Card className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-none">
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🧠</span>
+              <h3 className="text-lg font-semibold">AI Insights</h3>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm">
+                Based on your sales patterns, if you maintain this growth rate, you could see an additional {formatCurrency(profit * 0.2)} in revenue next month! 
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Pro tip: Your peak sales hours are between 2-4 PM. Consider running a happy hour promotion during slower periods.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Transactions */}
+      <div className="space-y-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold tracking-tight">Transactions</h2>
             <AddTransactionDialog onTransactionAdd={handleAddTransaction} />
           </div>
-        </div>
-        
-        <div className="flex items-center justify-between">
           <TransactionFilters 
             filters={filters} 
             onChange={setFilters}
             onReset={() => setFilters(initialFilters)}
           />
-          {selectedTransactions.length > 0 && (
-            <BulkActionsMenu
-              selectedCount={selectedTransactions.length}
-              onAction={handleBulkAction}
-            />
-          )}
         </div>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <TransactionsTable 
+              transactions={filteredTransactions}
+              onEdit={handleEditTransaction}
+              onDelete={handleDeleteTransaction}
+            />
+          </CardContent>
+        </Card>
       </div>
-      
-      <RecurringTransactions />
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>All Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TransactionsTable 
-            transactions={filteredTransactions}
-            selectedIds={selectedTransactions}
-            onSelectionChange={setSelectedTransactions}
-            onEdit={handleEditTransaction}
-            onDelete={handleDeleteTransaction}
-          />
-        </CardContent>
-      </Card>
 
       <EditTransactionDialog
         transaction={selectedTransaction}

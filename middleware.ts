@@ -6,7 +6,7 @@ export async function middleware(request: Request) {
   const isAuthPage = url.pathname.startsWith("/auth");
 
   // Define pages that should be accessible without authentication
-  const exceptionPages = ["/", "/forgotpassword",'/projects'];
+  const exceptionPages = ["/", "/forgotpassword"];
   const isExceptionPage = exceptionPages.includes(url.pathname);
 
   // Allow access to auth-related pages and exceptions without checking the token

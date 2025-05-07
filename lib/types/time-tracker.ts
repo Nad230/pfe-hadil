@@ -1,6 +1,7 @@
 export type TaskStatus = 'not_started' | 'in_progress' | 'completed' | 'paused'
 
 export interface Project {
+  ownerId: string | null
   id: string
   name: string
   description?: string

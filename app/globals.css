@@ -70,6 +70,9 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+}.leaflet-container {
+  width: 100%;
+  height: 100%;
 }
 
 @layer base {
