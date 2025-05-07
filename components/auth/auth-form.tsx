@@ -73,6 +73,8 @@ export function AuthForm({ mode }: AuthFormProps) {
   
       // Store the token in cookies
       Cookies.set("token", data.access_token, { expires: 7 });
+      localStorage.setItem("access_token", data.access_token);  // 👈 Add this line
+
   
       toast.success(mode === "login" ? "Welcome back!" : "Account created successfully!");
   

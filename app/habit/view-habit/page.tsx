@@ -24,7 +24,7 @@ import { ErrorMessage } from "@/components/ui/error-message"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import type { Habit } from "@/lib/types/habits"
-import { HabitCompletionForm } from "@/components/habits/habit-completion-form"
+import { HabitCompletionForm } from "@/components/habits copy/habit-completion-form"
 
 interface WeekData {
   startDate: Date

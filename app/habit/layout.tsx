@@ -1,6 +1,6 @@
 import type React from "react"
-import { HabitsHeader } from "@/components/habits/habits-header"
-import { Sidebar } from "@/components/habits/sidebar"
+import { HabitsHeader } from "@/components/habits copy/habits-header"
+import { Sidebar } from "@/components/habits copy/sidebar"
 
 export default function HabitLayout({
   children,
