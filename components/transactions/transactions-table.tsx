@@ -8,69 +8,118 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Transaction } from "@/lib/types"
 import { formatCurrency } from "@/lib/utils"
 import { TransactionStatusBadge } from "./transaction-status"
 import { TransactionActions } from "./transaction-actions"
+import { useEffect, useState } from "react"
+import Cookies from "js-cookie"
 
-interface TransactionsTableProps {
-  transactions: Transaction[]
-  onEdit: (transaction: Transaction) => void
-  onDelete: (transaction: Transaction) => void
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  type: "business" | "personal";
+  repeat: boolean;
+  repeatType: "daily" | "weekly" | "monthly" | null;
+  date: string;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
 }
 
-export function TransactionsTable({ transactions, onEdit, onDelete }: TransactionsTableProps) {
+interface TransactionsTableProps {
+  onEdit: (transaction: Expense) => void
+  onDelete: (transaction: Expense) => void
+}
+
+export function TransactionsTable({ onEdit, onDelete }: TransactionsTableProps) {
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      const token = Cookies.get("token")
+      try {
+        const response = await fetch('http://localhost:3000/expenses', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        
+        if (!response.ok) throw new Error('Failed to fetch expenses')
+        const data = await response.json()
+        setExpenses(data)
+      } catch (error) {
+        console.error("Error fetching expenses:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchExpenses()
+  }, [])
+
+  const getStatus = (expense: Expense) => {
+    if (expense.repeat) return 'recurring'
+    return 'completed'
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  }
+
   return (
     <div className="relative overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Date</TableHead>
-            <TableHead>Business</TableHead>
+            <TableHead>Type</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Source</TableHead>
+            <TableHead>Recurrence</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Amount</TableHead>
-            <TableHead className="text-right">Deductions</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {transactions.length === 0 ? (
+          {loading ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-center text-muted-foreground">
-                No transactions found
+              <TableCell colSpan={7} className="text-center">
+                Loading...
+              </TableCell>
+            </TableRow>
+          ) : expenses.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center text-muted-foreground">
+                No expenses found
               </TableCell>
             </TableRow>
           ) : (
-            transactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                <TableCell>{transaction.business}</TableCell>
-                <TableCell>{transaction.description}</TableCell>
-                <TableCell>{transaction.category}</TableCell>
-                <TableCell>{transaction.source}</TableCell>
+            expenses.map((expense) => (
+              <TableRow key={expense.id}>
+                <TableCell>{formatDate(expense.date)}</TableCell>
+                <TableCell className="capitalize">{expense.type}</TableCell>
+                <TableCell>{expense.title}</TableCell>
                 <TableCell>
-                  <TransactionStatusBadge status={transaction.status} />
+                  {expense.repeat
+                    ? `${expense.repeatType}${expense.endDate ? ` until ${formatDate(expense.endDate)}` : ''}`
+                    : 'One-time'}
                 </TableCell>
-                <TableCell className={`text-right ${
-                  transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {transaction.type === 'income' ? '+' : '-'}
-                  {formatCurrency(transaction.amount)}
+                <TableCell>
+                  <TransactionStatusBadge status={getStatus(expense)} />
                 </TableCell>
-                <TableCell className="text-right text-muted-foreground">
-                  {transaction.deductions 
-                    ? formatCurrency(
-                        (transaction.deductions.taxes || 0) + 
-                        (transaction.deductions.fees || 0)
-                      )
-                    : '-'}
+                <TableCell className="text-right text-red-600 dark:text-red-400">
+                  -{formatCurrency(expense.amount)}
                 </TableCell>
                 <TableCell>
                   <TransactionActions
-                    transaction={transaction}
+                    transaction={expense}
                     onEdit={onEdit}
                     onDelete={onDelete}
                   />

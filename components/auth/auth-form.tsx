@@ -48,36 +48,57 @@ export function AuthForm({ mode }: AuthFormProps) {
   async function onSubmit(values: z.infer<typeof registerSchema>) {
     try {
       setIsLoading(true);
-
-      const endpoint = mode === "login"
-        ? "http://localhost:3000/auth/login"
+  
+      const endpoint = mode === "login" 
+        ? "http://localhost:3000/auth/login" 
         : "http://localhost:3000/auth/register";
-
+  
       const payload = mode === "login"
         ? { email: values.email, password: values.password }
-        : { email: values.email, password: values.password, fullname: values.name, phone: values.phone };
-
+        : { 
+            email: values.email, 
+            password: values.password, 
+            fullname: values.name, 
+            phone: values.phone 
+          };
+  
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
+  
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Something went wrong");
-
+  
       // Store the token in cookies
-      Cookies.set("token", data.access_token, { expires: 7 }); // Set cookie with 7 days expiration
+      Cookies.set("token", data.access_token, { expires: 7 });
+        localStorage.setItem("access_token", data.access_token);  // 👈 Add this line
 
-      // Show success message and redirect
       toast.success(mode === "login" ? "Welcome back!" : "Account created successfully!");
-
+  
       if (mode === "register") {
-        // Redirect to login after successful signup
         router.push("/auth");
       } else {
-        // Redirect to dashboard after login
-        router.push("/dashboard");
+        // Get user data to determine onboarding status
+        const token = data.access_token;
+  
+        // 1. Get user ID
+        const meResponse = await fetch("http://localhost:3000/auth/me", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!meResponse.ok) throw new Error("Failed to fetch user data");
+        const { sub } = await meResponse.json();
+  
+        // 2. Get firstTime status
+        const subResponse = await fetch(`http://localhost:3000/auth/${sub}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!subResponse.ok) throw new Error("Failed to fetch user status");
+        const { firstTime } = await subResponse.json();
+  
+        // 3. Redirect based on firstTime status
+        router.push(firstTime ? "/dashboard" : "/onboarding");
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -85,7 +106,6 @@ export function AuthForm({ mode }: AuthFormProps) {
       setIsLoading(false);
     }
   }
-
   return (
     <div className="space-y-6">
       <Form {...form}>

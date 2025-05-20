@@ -33,6 +33,7 @@ import { X, ClipboardList, Tags, Wallet, Image, Eye, Users, Target, Calendar, Gl
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { AddTeamDialog } from "./add-team-dialog"
+import Cookies from "js-cookie";
 
 
 
@@ -41,9 +42,9 @@ const projectTypes = ["BUSINESS", "CREATIVE", "SOCIAL_IMPACT", "PERSONAL", "OTHE
 const revenueModels = ["SUBSCRIPTION", "ONE_TIME_SALES", "ADS", "DONATIONS", "OTHER"] as const
 const budgetRanges = ["LOW_1K_5K", "MID_5K_10K", "HIGH_10K_PLUS", "NOT_SURE"] as const
 const timelines = ["SHORT_0_3_MONTHS", "MEDIUM_3_12_MONTHS", "LONG_1_PLUS_YEARS"] as const
-const visibilityOptions = ["PUBLIC", "PRIVATE", "INVITE_ONLY"] as const
+const visibilityOptions = ["PUBLIC", "PRIVATE"] as const
 const fundingSources = ["Bootstrapped", "Investor-backed", "Crowdfunded", "Other"] as const
-const statuses = ["IDEA", "PLANNING", "IN_PROGRESS", "COMPLETED", "PAUSED","ACTIVE"] as const
+const statuses = ["idea", "planning", "in_progress"] as const
 const tags = [
   "Tech", "Finance", "Art", "Education", "Health", "Productivity",
   "Marketing", "SaaS", "AI", "Mobile", "Web", "E-commerce",
@@ -80,31 +81,10 @@ const steps = [
         title: "Project Tags",
         fields: ["tags"]
       }
-      ,
-      {
-        title: "Vision & Impact",
-        fields: ["vision", "Impact"]
-      }
     ]
   },
-  {
-    title: "Business Model",
-    description: "How will it generate value?",
-    icon: Wallet,
-    color: "text-blue-500",
-    emoji: "💰",
-    subSteps: [
-      {
-        title: "Revenue Model",
-        fields: ["revenueModel", "customRevenue"]
-      },
-      {
-        title: "Financial Planning",
-        fields: ["budgetRange", "fundingSource"]
-      }
-    ]
-  },
-  {
+  
+   {
     title: "Team & Timeline",
     description: "Planning and execution",
     icon: Users,
@@ -116,25 +96,21 @@ const steps = [
         fields: ["timeline", "status"]
       },
       {
-        title: "Team & Milestones",
-        fields: ["teamType", "teamMembers", "milestones"]
+        title: "Team & Date",
+        fields: ["teamType", "teamMembers", "milestones", "visibility"]
       }
     ]
   },
   {
-    title: "Media & Visibility",
-    description: "Show off your project",
-    icon: Eye,
+    title: "Review & Launch",
+    description: "Finalize your project details",
+    icon: Rocket,
     color: "text-rose-500",
-    emoji: "👁️",
+    emoji: "🚀",
     subSteps: [
       {
-        title: "Project Visibility",
-        fields: ["visibility", "location"]
-      },
-      {
-        title: "Media & Plan",
-        fields: ["collaborations", "media", "planType"]
+        title: "Review Details",
+        fields: ["review"]
       }
     ]
   }
@@ -143,12 +119,6 @@ const steps = [
 
 
 
-const mockUsers = [
-  { id: "u1", name: "Sarah Chen", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100" },
-  { id: "u2", name: "Alex Wong", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100" },
-  { id: "u3", name: "Emma Davis", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100" },
-  { id: "u4", name: "James Wilson", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100" },
-]
 
 interface FormData {
   id: string
@@ -169,8 +139,11 @@ interface FormData {
   status: typeof statuses[number]
   collaborations: string
   fundingSource: typeof fundingSources[number] | ""
-  milestones: string
+  estimatedCompletionDate: string // was String
+  mainGoal:string
   planType: "Lite" | "Pro"
+  strategyModel: "Lean Startup" | "Agile Sprint" | "MVP Focus" | "Custom Plan"
+  customStrategy?: string
   customType?: string
   customRevenue?: string
 }
@@ -181,7 +154,48 @@ interface AIAssistantProps {
   isLoading?: boolean
 }
 
-function AIAssistant({ message, onAccept, onDismiss, isLoading }: AIAssistantProps) {
+// Update the AIAssistant component
+function AIAssistant({ message, onAccept, onDismiss, isLoading, packageType }: AIAssistantProps & { packageType?: string }) {
+  const isAllowed = packageType && ["GOLD", "DIAMOND"].includes(packageType);
+  const isSubscriptionError = message === "Upgrade to GOLD or DIAMOND for AI features";
+
+  if (!isAllowed || isSubscriptionError) {
+    return (
+      <div className="fixed bottom-4 right-4 max-w-md bg-background border rounded-lg shadow-lg p-4 animate-in slide-in-from-right">
+        <div className="flex items-start gap-3">
+          <div className="bg-primary/10 p-2 rounded-full">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <p className="text-sm">
+              {message || "AI features require GOLD or DIAMOND subscription"}
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => window.location.href="/pricing"}>
+                Upgrade Now
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onDismiss}
+                className="text-muted-foreground"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onDismiss}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="fixed bottom-4 right-4 max-w-md bg-background border rounded-lg shadow-lg p-4 animate-in slide-in-from-right">
       <div className="flex items-start gap-3">
@@ -243,6 +257,12 @@ export default function ProjectForm({ onSubmit }: ProjectFormProps) {
   const [showTeamSearch, setShowTeamSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [showTeamDialog, setShowTeamDialog] = useState(false);
+  const [userPackage, setUserPackage] = useState< "SILVER" | "GOLD" | "DIAMOND">("SILVER");
+  const [isLoadingPackage, setIsLoadingPackage] = useState(true);
+  const [showAchievement, setShowAchievement] = useState(false)
+
+
+
   const [formData, setFormData] = useState<FormData>({
     name: "",
     type: "",
@@ -258,45 +278,138 @@ export default function ProjectForm({ onSubmit }: ProjectFormProps) {
     visibility: "PUBLIC",
     location: "",
     media: null,
-    status: "IDEA",
+    status: "planning",
     collaborations: "",
     fundingSource: "",
-    milestones: "",
+    estimatedCompletionDate: "",
+    mainGoal: "",
     id:"",
     planType: "Lite"
   })
 
 const [isAILoading, setIsAILoading] = useState(false)
 const [hasSeenAIPrompt, setHasSeenAIPrompt] = useState(false);
+const [currentUser, setCurrentUser] = useState<any>(null);
 
+
+useEffect(() => {
+  const fetchUserPackage = async () => {
+    try {
+      const token = Cookies.get("token");
+      if (!token) {
+        throw new Error("No token found");
+      }
+
+      // Fetch user details to get the ID
+      const userResponse = await fetch("http://localhost:3000/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        throw new Error("Failed to fetch user data");
+      }
+
+      const userData = await userResponse.json();
+      const userId = userData.sub; // Adjust according to the actual response structure
+
+      // Fetch the package using the user ID
+      const packageResponse = await fetch(`http://localhost:3000/auth/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!packageResponse.ok) {
+        throw new Error("Failed to fetch user package");
+      }
+
+      const packageData = await packageResponse.json();
+      setUserPackage(packageData.packageType);
+    } catch (error) {
+      console.error("Failed to fetch user package:", error);
+      toast.error("Failed to verify subscription");
+    } finally {
+      setIsLoadingPackage(false);
+    }
+  };
+
+  fetchUserPackage();
+}, []);
 
 const fetchAISuggestions = async (field: keyof FormData | 'section') => {
   setIsAILoading(true);
   try {
     const response = await fetch('http://localhost:3000/ai/assist', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${Cookies.get("token")}`,
+      },
       body: JSON.stringify({
         name: formData.name,
         description: formData.description
       }),
     });
 
-    if (!response.ok) throw new Error('AI request failed');
+    if (!response.ok) {
+      if (response.status === 403) {
+        throw new Error('subscription_required');
+      }
+      throw new Error('AI request failed');
+    }
+
     const data = await response.json();
     return mapAISuggestionsToFormData(data);
 
   } catch (error) {
     console.error('AI Error:', error);
+    
+    if (error instanceof Error && error.message === 'subscription_required') {
+      setShowAIAssistant(true);
+      setAIMessage("Upgrade to GOLD or DIAMOND for AI features");
+      return null;
+    }
+    
     toast.error('Failed to get AI suggestions');
     return null;
   } finally {
     setIsAILoading(false);
   }
 };
-
-
-// Add this new function to handle AI suggestions per field
+const StrategyCard = ({ 
+  title, 
+  description,
+  aiRole,
+  selected,
+  onSelect 
+}: {
+  title: string
+  description: string
+  aiRole: string
+  selected: boolean
+  onSelect: () => void
+})  => (
+  <motion.div 
+    whileHover={{ scale: 1.02 }}
+    className={`cursor-pointer border rounded-lg p-4 ${
+      selected ? "border-primary bg-primary/10" : "hover:border-primary/50"
+    }`}
+    onClick={onSelect}
+  >
+    <div className="flex items-start gap-3">
+      <div className="flex-1">
+        <h3 className="font-semibold mb-2">{title}</h3>
+        <p className="text-sm text-muted-foreground mb-2">{description}</p>
+        <div className="text-xs bg-primary/10 px-2 py-1 rounded-md">
+          <span className="font-medium">AI Role:</span> {aiRole}
+        </div>
+      </div>
+      <div className={`w-2 h-2 rounded-full ${selected ? "bg-primary" : "bg-muted"}`} />
+    </div>
+  </motion.div>
+)
 
 
 const mapAISuggestionsToFormData = (aiData: any): Partial<FormData> => {
@@ -306,6 +419,10 @@ const mapAISuggestionsToFormData = (aiData: any): Partial<FormData> => {
     return options.find(opt => opt.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanValue);
   };
 
+
+  const strategyOptions = ["Lean Startup", "Agile Sprint", "MVP Focus", "Custom Plan"] as const;
+  const rawStrategy = aiData?.StrategyModel || '';
+  const matchedStrategy = findEnumMatch(rawStrategy, strategyOptions);
   // Handle project type
   const rawProjectType = aiData?.Type || '';
   const matchedType = findEnumMatch(rawProjectType, projectTypes);
@@ -355,10 +472,13 @@ const mapAISuggestionsToFormData = (aiData: any): Partial<FormData> => {
     location: aiData?.Location || '',
     status: statuses.find(s => s === aiData?.Status?.toUpperCase()) || "IDEA",
     fundingSource: fundingSources.find(fs => fs === aiData?.['Funding Source']) || "",
-    milestones: aiData?.Milestones?.join('\n') || '',
+    estimatedCompletionDate: aiData?.CompletionDate,
     impact: aiData?.Impact || '',
     collaborations:aiData.Collaborations || '',
     media:aiData.Media,
+    strategyModel: matchedStrategy || "Custom Plan",
+    customStrategy: !matchedStrategy ? rawStrategy : undefined,
+    mainGoal:aiData.MainGoal,
     description: aiData?.Description || formData.description
   };
 };
@@ -432,10 +552,7 @@ useEffect(() => {
     }
   }
 
-  const filteredUsers = mockUsers.filter(user =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    !formData.teamMembers.includes(user.id)
-  )
+ 
 
   const handleAddTeamMember = (userId: string) => {
     setFormData(prev => ({
@@ -452,11 +569,7 @@ useEffect(() => {
     }))
   }
 
-  const handleSubmit = async () => {
-    // TODO: Implement form submission
-    console.log("Form submitted:", formData)
-    // router.push("/projects")
-  }
+  
 
   const handleNext = () => {
     const currentStep = steps[activeStep]
@@ -489,38 +602,7 @@ useEffect(() => {
     setShowAIAssistant(false);
     toast.success("AI suggestions applied!");
   };
-  const renderTeamMembers = () => {
-    return (
-      <div className="flex flex-wrap gap-2 mt-2">
-        {formData.teamMembers.map(userId => {
-          const user = mockUsers.find(u => u.id === userId)
-          if (!user) return null
-
-          return (
-            <Badge
-              key={userId}
-              variant="secondary"
-              className="flex items-center gap-2 pl-1"
-            >
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback>{user.name[0]}</AvatarFallback>
-              </Avatar>
-              <span>{user.name}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 p-0 hover:bg-transparent"
-                onClick={() => handleRemoveTeamMember(userId)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            </Badge>
-          )
-        })}
-      </div>
-    )
-  }
+ 
 
   const renderStepIndicator = () => {
     const currentStep = steps[activeStep]
@@ -561,6 +643,7 @@ useEffect(() => {
       </div>
     )
   }
+  
 
   const renderTeamSection = () => (
     <div className="space-y-2">
@@ -587,12 +670,11 @@ useEffect(() => {
         <div className="space-y-2">
           <Button
             variant="outline"
-            onClick={() => setShowTeamDialog(true)}
+            onClick={() => setShowTeamDialog(true)} // Changed from setShowTeamSearch
             className="w-full"
           >
             {formData.teamMembers.length > 0 ? "Manage Team" : "Add Team Members"}
           </Button>
-          {renderTeamMembers()}
   
 <AddTeamDialog
   open={showTeamDialog}
@@ -712,6 +794,43 @@ useEffect(() => {
     </div>
   </div>
 )}
+{fields.includes("visibility") && (
+  <div className="space-y-2">
+    <Label className="text-lg font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+      <span>👀 Visibility</span>
+    </Label>
+    <Select
+      value={formData.visibility}
+      onValueChange={value => handleInputChange("visibility", value)}
+    >
+      <SelectTrigger>
+        <SelectValue placeholder="Select visibility" />
+      </SelectTrigger>
+      <SelectContent>
+        {visibilityOptions.map(option => (
+          <SelectItem key={option} value={option}>
+            {option.replace(/_/g, " ")}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+    {formData.visibility === "PUBLIC" && (
+      <p className="text-sm text-muted-foreground">
+        This project will be shown in your profile.
+      </p>
+    )}
+    {formData.visibility === "PRIVATE" && (
+      <p className="text-sm text-muted-foreground">
+        This project will not be shown in your profile.
+      </p>
+    )}
+    {formData.visibility === "INVITE_ONLY" && (
+      <p className="text-sm text-muted-foreground">
+        Only invited members can view this project.
+      </p>
+    )}
+  </div>
+)}
 
           {fields.includes("type") && (
             <div className="space-y-2">
@@ -744,111 +863,9 @@ useEffect(() => {
             </div>
           )}
 
-          {fields.includes("vision") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                <span>🌟 Vision</span>
-              </Label>
-              <Textarea
-                value={formData.visionImpact}
-                onChange={e => handleInputChange("visionImpact", e.target.value)}
-                placeholder="What is the long-term vision for your project?"
-                className="min-h-[100px]"
-              />
-            </div>
-          )}
 
-          {fields.includes("impact") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
-                <span>💫 Expected Impact</span>
-              </Label>
-              <Textarea
-                value={formData.impact}
-                onChange={e => handleInputChange("impact", e.target.value)}
-                placeholder="How will your project make a difference?"
-                className="min-h-[100px]"
-              />
-            </div>
-          )}
-
-          {fields.includes("revenueModel") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                <span>💰 Revenue Model</span>
-              </Label>
-              <Select
-                value={formData.revenueModel}
-                onValueChange={value => handleInputChange("revenueModel", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="How will your project generate money?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {revenueModels.map(model => (
-                    <SelectItem key={model} value={model}>
-                      {model.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formData.revenueModel === "OTHER" && fields.includes("customRevenue") && (
-                <Textarea
-                  value={formData.customRevenue}
-                  onChange={e => handleInputChange("customRevenue", e.target.value)}
-                  placeholder="Describe your unique revenue model..."
-                  className="mt-2"
-                />
-              )}
-            </div>
-          )}
-
-          {fields.includes("budgetRange") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                <span>💵 Budget Range</span>
-              </Label>
-              <Select
-                value={formData.budgetRange}
-                onValueChange={value => handleInputChange("budgetRange", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="What's your estimated budget?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {budgetRanges.map(range => (
-                    <SelectItem key={range} value={range}>
-                      {range === "NOT_SURE" ? "I'm not sure yet" : range.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {fields.includes("fundingSource") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                <span>💸 Funding Source</span>
-              </Label>
-              <Select
-                value={formData.fundingSource}
-                onValueChange={value => handleInputChange("fundingSource", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Where is the funding coming from?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fundingSources.map(source => (
-                    <SelectItem key={source} value={source}>
-                      {source}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
+       
+      
           {fields.includes("timeline") && (
             <div className="space-y-2">
               <Label className="text-lg font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
@@ -872,118 +889,51 @@ useEffect(() => {
             </div>
           )}
 
-          {fields.includes("status") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
-                <span>🎯 Project Status</span>
-              </Label>
-              <Select
-                value={formData.status}
-                onValueChange={value => handleInputChange("status", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="What stage is your project in?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map(status => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+         
 
           {fields.includes("teamType") && renderTeamSection()}
 
           {fields.includes("milestones") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
-                <span>🚀 Project Milestones</span>
-              </Label>
-              <Textarea
-                value={formData.milestones}
-                onChange={e => handleInputChange("milestones", e.target.value)}
-                placeholder="List your major project milestones (Optional)"
-                className="h-24"
-              />
-            </div>
-          )}
+  <div className="space-y-2">
+    <Label className="text-lg font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-2">
+      <span>📅 Completion Date</span>
+    </Label>
+    <Input
+  type="date"
+  name="estimatedCompletionDate"
+  value={
+    formData.estimatedCompletionDate &&
+    !isNaN(new Date(formData.estimatedCompletionDate).getTime()) 
+      ? new Date(formData.estimatedCompletionDate).toISOString().split('T')[0] 
+      : ''
+  }
+  onChange={e => handleInputChange(
+    "estimatedCompletionDate", 
+    new Date(e.target.value).toISOString()
+  )}
+  min={new Date().toISOString().split('T')[0]}
+/>
 
-          {fields.includes("visibility") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>👁️ Project Visibility</span>
-              </Label>
-              <Select
-                value={formData.visibility}
-                onValueChange={value => handleInputChange("visibility", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Who can see your project?" />
-                </SelectTrigger>
-                <SelectContent>
-                  {visibilityOptions.map(opt => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {fields.includes("location") && (
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>🌍 Location</span>
-              </Label>
-              <Input
-                value={formData.location}
-                onChange={e => handleInputChange("location", e.target.value)}
-                placeholder="Is your project location-based? (Optional, skip if not applicable)"
-              />
-            </div>
-          )}
-
-          {fields.includes("collaborations") && (
-            <div className="space-y-0">
-              <Label className="text-lg font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>🤝 Collaborations</span>
-              </Label>
-              <Textarea
-                value={formData.collaborations}
-                onChange={e => handleInputChange("collaborations", e.target.value)}
-                placeholder="Are you open to collaborations? What kind? (e.g., partnerships, co-founders, sponsorships)"
-                className="min-h-[100px]"
-              />
-            </div>
-          )}
-
-          {fields.includes("media") && (
-            <div className="space-y-0">
-              <Label className="text-lg font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
-                <span>📸 Project Media</span>
-              </Label>
-              <FileUpload
-                onFilesSelected={handleFileUpload}
-                maxSize={10 * 1024 * 1024}
-                accept={{
-                  'image/*': ['.png', '.jpg', '.jpeg'],
-                  'video/*': ['.mp4', '.mov'],
-                  'audio/*': ['.mp3', '.wav']
-                }}
-                helperText="Upload images, videos, or a voice pitch (Max size: 10MB)"
-              />
-            </div>
-          )}
-
+  </div>
+)}
+ {fields.includes("review") && (
+    <div className="space-y-4">
+      <h3 className="text-xl font-bold">Project Summary</h3>
+      <div className="space-y-2">
+        <p><strong>Name:</strong> {formData.name}</p>
+        <p><strong>Description:</strong> {formData.description}</p>
+        <p><strong>Team:</strong> {formData.teamMembers.join(", ")}</p>
+        <p><strong>Target Completion:</strong> {formData.estimatedCompletionDate}</p>
+      </div>
+    </div>
+  )}
+       
           
         </div>
       </motion.div>
     )
   }
+ 
 
   return (
     <Card className="max-w-4xl mx-auto">
@@ -1001,41 +951,37 @@ useEffect(() => {
           </div>
         )}
 
-        <div className="flex justify-between mt-8 max-w-xl mx-auto">
-          {(activeStep > 0 || activeSubStep > 0) && (
-            <Button
-              variant="outline"
-              onClick={handleBack}
-              className="px-8"
-            >
-              Back
-            </Button>
-          )}
-          {activeStep < steps.length - 1 || activeSubStep < steps[activeStep].subSteps.length - 1 ? (
-            <Button
-              className={`ml-auto px-8 ${
-                activeStep === 0 ? "bg-indigo-500 hover:bg-indigo-600" :
-                activeStep === 1 ? "bg-emerald-500 hover:bg-emerald-600" :
-                activeStep === 2 ? "bg-blue-500 hover:bg-blue-600" :
-                activeStep === 3 ? "bg-purple-500 hover:bg-purple-600" :
-                "bg-rose-500 hover:bg-rose-600"
-              }`}
-              onClick={handleNext}
-            >
-              Next
-            </Button>
-          ) : (
-            <Button
-              className="ml-auto px-8 bg-rose-500 hover:bg-rose-600"
-              onClick={() => onSubmit(formData)}
-              
-            >
-              Launch Project 🚀
-            </Button>
-          )}
-        </div>
-        
-        {showAIAssistant && (
+<div className="flex justify-between mt-8 max-w-xl mx-auto">
+  {(activeStep > 0 || activeSubStep > 0) && (
+    <Button variant="outline" onClick={handleBack} className="px-8">
+      Back
+    </Button>
+  )}
+  
+  {activeStep < steps.length - 1 || 
+  activeSubStep < steps[activeStep].subSteps.length - 1 ? (
+    <Button
+    className={`ml-auto px-8 ${
+      activeStep === 0 ? "bg-indigo-500 hover:bg-indigo-600" :
+      activeStep === 1 ? "bg-emerald-500 hover:bg-emerald-600" :
+      "bg-purple-500 hover:bg-purple-600"
+    }`}
+    onClick={handleNext}
+  >
+        Next
+    </Button>
+  ) : (
+    <Button
+      className="ml-auto px-8 bg-rose-500 hover:bg-rose-600"
+      onClick={() => onSubmit(formData)}
+    >
+      Launch Project 🚀
+    </Button>
+  )}
+</div>
+
+      
+        {showAIAssistant && !isLoadingPackage && (
   <AIAssistant
     message={aiMessage}
     onAccept={handleAcceptAISuggestion}
@@ -1044,7 +990,9 @@ useEffect(() => {
       setHasSeenAIPrompt(true);
     }}
     isLoading={isAILoading}
-  />)}
+    packageType={userPackage}
+  />
+)}
     
       </CardContent>
     </Card>
@@ -1052,4 +1000,3 @@ useEffect(() => {
 
 
 }
-

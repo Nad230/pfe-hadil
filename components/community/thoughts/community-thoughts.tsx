@@ -21,7 +21,7 @@ export function CommunityThoughts() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Community Thoughts</CardTitle>
+        <CardTitle>Thoughts</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
