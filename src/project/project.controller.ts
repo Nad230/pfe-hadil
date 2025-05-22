@@ -1,5 +1,5 @@
 // src/project/project.controller.ts
-import { Controller, Post, Body, UseGuards, Request, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Patch, Param, Delete, Get, NotFoundException } from '@nestjs/common';
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -9,12 +9,30 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
+
+  @UseGuards(JwtAuthGuard)
+    @Get("stats")
+    getproject(@Request() req) {
+      console.log("Decoded user from JWT:", req.user);
+      return this.projectService.getProjectStats(req.user.sub);
+    }
+
+    
+
     @UseGuards(JwtAuthGuard)
     @Post('create')
     async create(@Request() req, @Body() data: CreateProjectDto) {
     console.log("Decoded user from JWT:", req.user); // Debugging
     return this.projectService.create(req.user.sub, data);
     }
+
+
+@UseGuards(JwtAuthGuard)
+@Get('jwt')
+async getsub(@Request() req) {
+ return req.user.sub
+}
+
     @UseGuards(JwtAuthGuard)
     @Patch(':id')
     async update(
@@ -22,7 +40,6 @@ export class ProjectController {
     @Param('id') projectId: string, 
     @Body() data: UpdateProjectDto
     ) {
-    console.log("Decoded user from JWT:", req.user);
     return this.projectService.update(req.user.sub, projectId, data);
     }
 
@@ -34,5 +51,72 @@ export class ProjectController {
     return this.projectService.delete(req.user.sub, projectId);
     }
 
+ 
+   
+ @UseGuards(JwtAuthGuard)
+    @Get("monthly")
+    getMonthgrouth(@Request() req) {
+      console.log("Decoded user from JWT:", req.user);
+      return this.projectService.monthlyGrowth(req.user.sub);
+    }
 
+   
+
+
+   
+
+
+   
+
+
+
+    
+    
+    
+    
+
+
+    @UseGuards(JwtAuthGuard)
+    @Get('ai_suggest/:id')
+    getAInsights(@Request() req, @Param('projectId') projectId: string) {
+      return this.projectService.getProjectAIInsights(req.user.sub, projectId);
+    }
+
+
+    @UseGuards(JwtAuthGuard)
+    @Get('progress/:projectId')
+    getProjectprogress( @Param('projectId') projectId: string) {
+      return this.projectService.getProjectProgressById(projectId);
+    }
+
+
+    @UseGuards(JwtAuthGuard)
+    @Get('time_spent/:projectId')
+    getprojectTime( @Param('projectId') projectId: string) {
+      return this.projectService.getProjectTimeMetrics(projectId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+
+  @Get(':projectId')
+async getProject(@Param('projectId') projectId: string, @Request() req) {
+  console.log('[getProject] called with', { projectId, userId: req.user.sub });
+  const project = await this.projectService.getById(req.user.sub, projectId);
+  console.log('[getProject] service returned:', project);
+  if (!project) throw new NotFoundException('Project not found');
+  return project;
 }
+
+     @UseGuards(JwtAuthGuard)
+    @Get()
+    getAll(@Request() req) {
+      console.log("Decoded user from JWT:", req.user);
+      return this.projectService.getAll(req.user.sub);
+    }
+}
+
+   
+
+    
+  
+
